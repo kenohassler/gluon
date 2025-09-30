@@ -1,0 +1,67 @@
+From: Florian Maurer <f.maurer@outlook.de>
+Date: Mon, 15 Sep 2025 21:22:49 +0200
+Subject: tunneldigger: add broker_selection option to expose load balancing capabilities
+
+Using the broker_selection param makes it possible to decide by use (default),
+always use the first available broker to connect or select a random broker
+
+See also: https://github.com/wlanslovenija/tunneldigger/blob/51a5e46ad143c92d2867835a563146ec4fbc6211/client/l2tp_client.c#L1331-L1333
+
+Signed-off-by: Florian Maurer <f.maurer@outlook.de>
+
+diff --git a/net/tunneldigger/Makefile b/net/tunneldigger/Makefile
+index f314bf2bfe25ad03250c9bde0698cf31ccb950b1..46f07004256642566df7332cd320ac8d4bbdcf8c 100644
+--- a/net/tunneldigger/Makefile
++++ b/net/tunneldigger/Makefile
+@@ -1,7 +1,7 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=tunneldigger
+-PKG_RELEASE:=1
++PKG_RELEASE:=2
+ 
+ PKG_SOURCE_URL:=https://github.com/wlanslovenija/tunneldigger.git
+ PKG_SOURCE_PROTO:=git
+diff --git a/net/tunneldigger/files/config.default b/net/tunneldigger/files/config.default
+index 571621a42e4bc05fc4ae657dceb3b4d40c69491c..0a01bc2a0cc862fe9722f77101cc473cb6f19ecb 100644
+--- a/net/tunneldigger/files/config.default
++++ b/net/tunneldigger/files/config.default
+@@ -5,4 +5,5 @@ config broker
+ 	option uuid 'abcd'
+ 	option interface 'l2tp0'
+ 	option limit_bw_down '1024'
++	option broker_selection 'usage'
+ 	option enabled '0'
+diff --git a/net/tunneldigger/files/tunneldigger.init b/net/tunneldigger/files/tunneldigger.init
+index bacaace8168ecddb8a82bff731df82d75830edbd..810d96be7a7fbaa220ff68aea318ca044abf029c 100644
+--- a/net/tunneldigger/files/tunneldigger.init
++++ b/net/tunneldigger/files/tunneldigger.init
+@@ -22,6 +22,7 @@ parse_broker() {
+ 	config_get hook_script "$section" hook_script
+ 	config_get bind_interface "$section" bind_interface
+ 	config_get group "$section" group
++	config_get broker_selection "$section" broker_selection
+ 	
+ 	[ $enabled -eq 0 ] && return
+ 
+@@ -38,6 +39,20 @@ parse_broker() {
+ 		network_get_device _bind_interface "${bind_interface}" || _bind_interface="${bind_interface}"
+ 		append broker_opts "-I ${_bind_interface}"
+ 	}
++	[ ! -z "${broker_selection}" ] && {
++		# Set broker selection.
++		case "${broker_selection}" in
++			usage)
++				append broker_opts "-a"
++			;;
++			first)
++				append broker_opts "-g"
++			;;
++			random)
++				append broker_opts "-r"
++			;;
++		esac
++	}
+ 
+ 	if [ -z "$uuid" ]; then
+ 		missing uuid
